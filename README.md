@@ -1,4 +1,6 @@
-# PSClaudeCode
+<p align="center">
+  <img src="reference/PowerShell-Claude-Code.png" alt="alt text" width="450">
+</p>
 
 <p align="center">
   <a href="https://x.com/dfinke">
@@ -6,6 +8,10 @@
   <a href="https://youtube.com/@dougfinke">
     <img src="https://img.shields.io/youtube/channel/subscribers/UCP47ZkO5EDkoI2sr-3P4ShQ"></a>
 </p>
+<br/>
+<br/>
+
+# PSClaudeCode
 
 Ever wondered how AI agents like Claude Code work their magic? Dive into this PowerShell implementation and build your own intelligent assistant from scratch!
 
