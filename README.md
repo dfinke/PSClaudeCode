@@ -83,5 +83,10 @@ Check out the [step-by-step guide](reference/2026-01-10-Building-PowerShell-AI-A
 ## Contributing
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+## Be Sure to Check out
+
+- [dfinke/psai](https://github.com/dfinke/psai): PSAI brings the power of autonomous agents to PowerShell, allowing you to seamlessly integrate AI capabilities into your scripts and terminal workflows.
+- [dfinke/psaisuite](https://github.com/dfinke/psaisuite): Simple, unified interface to multiple Generative AI providers. PSAISuite makes it easy for developers to use multiple LLM through a standardized interface.
+
 ## License
 This project is licensed under the MIT License - see the LICENSE file for details.
