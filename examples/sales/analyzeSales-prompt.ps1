@@ -1,0 +1,1 @@
+..\..\agent-v3.ps1 "Analyze .\sales.csv data: find top trends, generate a line chart code, run it, and save the query + viz script to the current diretory. be opinionated on what to produce. use powershell only, viz as an html react page, single file. ensure the html is valid and works."
