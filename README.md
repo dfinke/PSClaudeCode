@@ -30,9 +30,10 @@ Inspired by the original [Claude Code article](https://x.com/dabit3/status/20096
 ## Features
 - **Agent Loop**: Iterative task completion with AI-driven decision making
 - **Structured Tools**: Function calling for file operations (read/write) and command execution
+- **Sub-Agents**: Delegation of complex tasks to specialized sub-agents with limited context
 - **Permission Checks**: Safe operations with user confirmation for dangerous actions
 - **PowerShell Native**: Built entirely in PowerShell, compatible with PSAI and OpenAI APIs
-- **Progressive Complexity**: Three agent versions showing evolution from simple to advanced
+- **Progressive Complexity**: Four agent versions showing evolution from simple to advanced
 
 ## Prerequisites
 - PowerShell 5.1 or higher
@@ -51,11 +52,12 @@ Inspired by the original [Claude Code article](https://x.com/dabit3/status/20096
    ```
 
 ## Usage
-The repository includes three agent implementations of increasing complexity:
+The repository includes four agent implementations of increasing complexity:
 
 - `agent-v0.ps1`: Simple single-command agent
 - `agent-v1.ps1`: Looping agent with JSON-based responses
 - `agent-v2.ps1`: Advanced agent with structured tools and function calling
+- `agent-v3.ps1`: Agent with sub-agent delegation for complex tasks
 
 Run any agent with a task description:
 ```powershell
@@ -83,8 +85,14 @@ Run any agent with a task description:
 # Agent uses structured tools for file operations and command execution
 ```
 
+### Agent v3 - Sub-Agent Delegation
+```powershell
+.\agent-v3.ps1 "Create a PowerShell script that calculates Fibonacci numbers and then test it"
+# Agent can delegate complex subtasks to sub-agents with isolated context
+```
+
 ## Agent Evolution
-Check out the [step-by-step guide](reference/2026-01-10-Building-PowerShell-AI-Agent-From-Scratch-to-Claude-Code.md) to understand the evolution from basic to advanced agent implementations.
+Check out the [step-by-step guide](reference/2026-01-10-Building-PowerShell-AI-Agent-From-Scratch-to-Claude-Code.md) and the 
 
 ## Contributing
 Contributions are welcome! Please feel free to submit a Pull Request.
