@@ -80,15 +80,18 @@ Demo: the agent reads monthly CSV sales files and autonomously creates quarterly
    ```
 
 ## Usage
-After importing the module, use the `Invoke-PSClaudeCode` cmdlet:
+After importing the module, use the `Invoke-PSClaudeCode` cmdlet or its alias `ipcc`:
 
 ```powershell
 Invoke-PSClaudeCode -Task "List all PowerShell files in this directory"
+# or
+ipcc -Task "List all PowerShell files in this directory"
 ```
 
 ### Parameters
 - **`-Task`**: The task description for the AI agent to complete (required)
 - **`-Model`**: The Claude model to use (optional, defaults to "claude-sonnet-4-5-20250929")
+- **`-dangerouslySkipPermissions`**: Switch to bypass user confirmation prompts for dangerous operations (use with caution)
 
 ### Examples
 ```powershell
@@ -97,6 +100,9 @@ Invoke-PSClaudeCode -Task "Create a new file called 'test.txt' with 'Hello, Worl
 
 # Specify a different model
 Invoke-PSClaudeCode -Task "List all files in the current directory" -Model "claude-3-5-sonnet-20241022"
+
+# Bypass permission checks (use with caution)
+Invoke-PSClaudeCode -Task "Delete all .tmp files in the current directory" -dangerouslySkipPermissions
 ```
 
 The repository also includes three standalone agent script implementations of increasing complexity (these use OpenAI API for reference):

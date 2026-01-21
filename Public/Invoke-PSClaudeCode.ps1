@@ -3,7 +3,8 @@
 function Invoke-PSClaudeCode {
     param(
         [string]$Task,
-        [string]$Model = "claude-sonnet-4-5-20250929"
+        [string]$Model = "claude-sonnet-4-5-20250929",
+        [switch]$dangerouslySkipPermissions
     )
 
     $apiKey = $env:ANTHROPIC_API_KEY
@@ -162,6 +163,8 @@ function Invoke-PSClaudeCode {
 
     function Check-Permission {
         param([string]$ToolName, $ToolInput)
+    
+        if ($dangerouslySkipPermissions) { return $true }
     
         if ($ToolName -eq "Run-Command") {
             $cmd = $ToolInput.command

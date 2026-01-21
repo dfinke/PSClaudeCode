@@ -1,5 +1,5 @@
 @{
-    ModuleVersion     = '1.0.2'
+    ModuleVersion     = '1.0.3'
     GUID              = '36c95bb7-6763-4c71-9d48-feffa33efc5c'  
     Author            = 'Doug Finke'
     CompanyName       = 'Doug Finke'
@@ -10,7 +10,7 @@
     FunctionsToExport = @('Invoke-PSClaudeCode')
     CmdletsToExport   = @()
     VariablesToExport = @()
-    AliasesToExport   = @()
+    AliasesToExport   = @('ipcc')
     PrivateData       = @{
         PSData = @{
             Tags         = @('AI', 'Agent', 'Anthropic', 'Claude', 'PowerShell', 'Automation')

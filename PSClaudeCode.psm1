@@ -3,3 +3,6 @@ $PublicFunctions = Get-ChildItem -Path "$PSScriptRoot\Public" -Filter "*.ps1" -E
 foreach ($FunctionFile in $PublicFunctions) {
     . $FunctionFile.FullName
 }
+
+# Define aliases
+Set-Alias -Name 'ipcc' -Value 'Invoke-PSClaudeCode'
