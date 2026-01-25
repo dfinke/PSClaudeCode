@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-01-25
+
+### Added
+- **Comment-Based Help**: Added comprehensive PowerShell comment-based help to `Invoke-PSClaudeCode` function with SYNOPSIS, DESCRIPTION, PARAMETERS, EXAMPLES, and NOTES sections
+- **Pipeline Input Support**: Enhanced `Invoke-PSClaudeCode` to accept pipeline input as context, allowing content to be piped directly to the agent
+- **Enhanced Test Coverage**: Added comprehensive tests for help functionality and pipeline input processing
+
+### Changed
+- **Documentation**: Updated README.md with new features, pipeline input examples, and help usage instructions
+- **Test Suite**: Expanded test coverage to 42 tests including parameter validation, help documentation, and pipeline functionality
+
 ## [1.0.3] - 2026-01-21
 
 ### Added
