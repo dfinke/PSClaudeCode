@@ -69,6 +69,8 @@ The examples above highlight how the agent can handle complex, multi-step tasks 
 - **Sub-agent Support**: Delegates complex tasks to specialized sub-agents
 - **PowerShell Native**: Built entirely in PowerShell, compatible with Anthropic Claude API
 - **Progressive Complexity**: Three agent versions showing evolution from simple to advanced
+- **Comment-Based Help**: Full PowerShell help documentation with `Get-Help Invoke-PSClaudeCode`
+- **Pipeline Input Support**: Accept context via pipeline for enhanced task descriptions
 
 ## Prerequisites
 - PowerShell 5.1 or higher
@@ -111,10 +113,20 @@ Invoke-PSClaudeCode -Task "List all PowerShell files in this directory"
 ipcc -Task "List all PowerShell files in this directory"
 ```
 
+### Getting Help
+The cmdlet includes comprehensive comment-based help:
+
+```powershell
+Get-Help Invoke-PSClaudeCode
+Get-Help Invoke-PSClaudeCode -Examples
+Get-Help Invoke-PSClaudeCode -Parameter Task
+```
+
 ### Parameters
 - **`-Task`**: The task description for the AI agent to complete (required)
 - **`-Model`**: The Claude model to use (optional, defaults to "claude-sonnet-4-5-20250929")
 - **`-dangerouslySkipPermissions`**: Switch to bypass user confirmation prompts for dangerous operations (use with caution)
+- **Pipeline Input**: Accepts pipeline input as additional context for the task
 
 ### Examples
 ```powershell
@@ -152,6 +164,18 @@ Invoke-PSClaudeCode -Task "List all files in the current directory and count how
 # Agent will request permission for any potentially dangerous commands
 ```
 
+### Pipeline Input Examples
+```powershell
+# Use file content directly as the task
+Get-Content "data.txt" | Invoke-PSClaudeCode
+
+# Provide context with a specific task
+Get-Content "error.log" | Invoke-PSClaudeCode -Task "Analyze these error logs and identify the root cause"
+
+# Process multiple files as context
+Get-ChildItem "*.json" | Get-Content | Invoke-PSClaudeCode -Task "Compare these JSON configurations and highlight differences"
+```
+
 ### Using Different Models
 ```powershell
 # Use Claude 3.5 Sonnet
@@ -159,6 +183,20 @@ Invoke-PSClaudeCode -Task "Analyze the PowerShell scripts in this directory" -Mo
 
 # Use the latest Claude Sonnet (default)
 Invoke-PSClaudeCode -Task "Create a summary of all .md files in the repository"
+```
+
+### Pipeline Input for Context
+The cmdlet now supports pipeline input to provide additional context:
+
+```powershell
+# Use file content as the task
+Get-Content "data.txt" | Invoke-PSClaudeCode
+
+# Combine task with piped context
+Get-Content "logfile.txt" | Invoke-PSClaudeCode -Task "Analyze this log file and create a summary report"
+
+# Process multiple files
+Get-ChildItem "*.csv" | Get-Content | Invoke-PSClaudeCode -Task "Analyze these CSV files and identify trends"
 ```
 
 ### Legacy Script Examples
