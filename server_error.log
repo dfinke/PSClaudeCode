@@ -1,0 +1,9 @@
+2026-01-27 10:00:01 [INFO] Server started
+2026-01-27 10:05:22 [ERROR] ConnectionRefused: db-primary:5432 - Timeout after 3000ms
+2026-01-27 10:05:23 [WARN] Retrying connection... attempt 1
+2026-01-27 10:05:25 [ERROR] ConnectionRefused: db-primary:5432 - Timeout after 3000ms
+2026-01-27 10:05:26 [CRITICAL] Database unreachable. Switching to read-only mode.
+2026-01-27 10:15:00 [INFO] Health check passed
+2026-01-27 10:22:45 [ERROR] User 5521 failed auth: InvalidToken
+2026-01-27 10:22:46 [ERROR] User 5521 failed auth: InvalidToken
+2026-01-27 10:22:47 [ERROR] User 5521 failed auth: InvalidToken (Possible brute force)
