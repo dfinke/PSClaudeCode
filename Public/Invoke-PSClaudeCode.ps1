@@ -113,20 +113,24 @@ function Invoke-PSClaudeCode {
                     $contentValue = ($contentValue | Where-Object { $_.type -eq "text" } | ForEach-Object { $_.text }) -join ""
                 }
 
-                $inputMessage = @{
-                    role    = $role
-                    content = @(@{
-                        type = "text"
-                        text = "$contentValue"
-                    })
+                if ($role -eq "tool") {
+                    $inputMessage = @{
+                        role    = $role
+                        content = @(@{
+                            type         = "tool_result"
+                            tool_call_id = $message.tool_call_id
+                            output       = "$contentValue"
+                        })
+                    }
                 }
-
-                if ($message.tool_call_id) {
-                    $inputMessage.tool_call_id = $message.tool_call_id
-                }
-
-                if ($message.tool_calls) {
-                    $inputMessage.tool_calls = $message.tool_calls
+                else {
+                    $inputMessage = @{
+                        role    = $role
+                        content = @(@{
+                            type = "input_text"
+                            text = "$contentValue"
+                        })
+                    }
                 }
 
                 $inputs += $inputMessage

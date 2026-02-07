@@ -176,6 +176,10 @@ Describe 'Invoke-PSClaudeCode' {
             $script:FunctionContent | Should -Match 'max_output_tokens'
         }
 
+        It 'Should format OpenAI input as input_text items' {
+            $script:FunctionContent | Should -Match 'input_text'
+        }
+
         It 'Should process tool uses from API response' {
             $script:FunctionContent | Should -Match 'tool_use'
         }
