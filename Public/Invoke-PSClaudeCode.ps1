@@ -471,7 +471,8 @@ function Invoke-PSClaudeCode {
             return $true
         }
 
-        $messages = @(@{ role = "user"; content = @(@{ type = "input_text"; text = $Task }) })
+        $contentType = if ($Provider -eq "OpenAI") { "input_text" } else { "text" }
+        $messages = @(@{ role = "user"; content = @(@{ type = $contentType; text = $Task }) })
 
         $providerTools = Convert-ToolsForProvider -SelectedProvider $Provider -ToolDefinitions $tools
 
