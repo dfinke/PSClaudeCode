@@ -47,6 +47,17 @@ This image displays a sample section of the log file being analyzed, showing the
 
 ![Sample section of log file being analyzed](media/ipcc-log-sample-section.png)
 
+### OpenAI Provider Support
+PSClaudeCode now fully supports the OpenAI Responses API with complete tool calling capabilities. The agent can use OpenAI models like GPT-4.1 for autonomous task completion:
+
+```powershell
+# Use OpenAI with GPT-4.1 for file analysis
+Invoke-PSClaudeCode -Task "Read the PSClaudeCode.psd1 file and summarize its contents" -Model "gpt-4.1" -Provider OpenAI
+
+# OpenAI agent analyzing PowerShell module structure
+Invoke-PSClaudeCode -Task "Analyze all PowerShell files in this directory and create a dependency map" -Provider OpenAI
+```
+
 The examples above highlight how the agent can handle complex, multi-step tasks without predefined logic, adapting to the specific requirements of log analysis and reporting.
 
 ## Table of Contents
