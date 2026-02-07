@@ -205,6 +205,10 @@ Describe 'Invoke-PSClaudeCode' {
             $script:FunctionContent | Should -Match 'GetResponseStream'
         }
 
+        It 'Should use ErrorDetails when present for API errors' {
+            $script:FunctionContent | Should -Match 'ErrorDetails'
+        }
+
         It 'Should handle text content in responses' {
             $script:FunctionContent | Should -Match 'type.*-eq.*"text"'
         }

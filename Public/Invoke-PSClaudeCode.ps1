@@ -221,12 +221,16 @@ function Invoke-PSClaudeCode {
             )
 
             function Get-ErrorDetails {
-                param($Exception)
+                param($ErrorRecord)
 
-                $message = $Exception.Message
-                if ($Exception.Response) {
+                $message = $ErrorRecord.Exception.Message
+                if ($ErrorRecord.ErrorDetails -and $ErrorRecord.ErrorDetails.Message) {
+                    return "$message`n$($ErrorRecord.ErrorDetails.Message)"
+                }
+
+                if ($ErrorRecord.Exception.Response) {
                     try {
-                        $stream = $Exception.Response.GetResponseStream()
+                        $stream = $ErrorRecord.Exception.Response.GetResponseStream()
                         if ($stream) {
                             $reader = New-Object System.IO.StreamReader($stream)
                             $responseBody = $reader.ReadToEnd()
@@ -259,7 +263,7 @@ function Invoke-PSClaudeCode {
                     } -Body $body -ErrorAction Stop
                 }
                 catch {
-                    return @{ error = Get-ErrorDetails -Exception $_.Exception }
+                    return @{ error = Get-ErrorDetails -ErrorRecord $_ }
                 }
 
                 return Normalize-Response -SelectedProvider $SelectedProvider -Response $response
@@ -280,7 +284,7 @@ function Invoke-PSClaudeCode {
                 } -Body $body -ErrorAction Stop
             }
             catch {
-                return @{ error = Get-ErrorDetails -Exception $_.Exception }
+                return @{ error = Get-ErrorDetails -ErrorRecord $_ }
             }
 
             return $response
