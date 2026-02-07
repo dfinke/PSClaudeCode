@@ -91,9 +91,11 @@ function Invoke-PSClaudeCode {
                 return $ToolDefinitions | ForEach-Object {
                     @{
                         type     = "function"
-                        name     = $_.name
-                        description = $_.description
-                        parameters  = $_.input_schema
+                        function = @{
+                            name        = $_.name
+                            description = $_.description
+                            parameters  = $_.input_schema
+                        }
                     }
                 }
             }
