@@ -220,6 +220,29 @@ function Invoke-PSClaudeCode {
                 [string]$Key
             )
 
+            function Get-ErrorDetails {
+                param($Exception)
+
+                $message = $Exception.Message
+                if ($Exception.Response) {
+                    try {
+                        $stream = $Exception.Response.GetResponseStream()
+                        if ($stream) {
+                            $reader = New-Object System.IO.StreamReader($stream)
+                            $responseBody = $reader.ReadToEnd()
+                            if ($responseBody) {
+                                $message = "$message`n$responseBody"
+                            }
+                        }
+                    }
+                    catch {
+                        return $message
+                    }
+                }
+
+                return $message
+            }
+
             if ($SelectedProvider -eq "OpenAI") {
                 $body = @{
                     model      = $SelectedModel
@@ -236,7 +259,7 @@ function Invoke-PSClaudeCode {
                     } -Body $body -ErrorAction Stop
                 }
                 catch {
-                    return @{ error = $_.Exception.Message }
+                    return @{ error = Get-ErrorDetails -Exception $_.Exception }
                 }
 
                 return Normalize-Response -SelectedProvider $SelectedProvider -Response $response
@@ -257,7 +280,7 @@ function Invoke-PSClaudeCode {
                 } -Body $body -ErrorAction Stop
             }
             catch {
-                return @{ error = $_.Exception.Message }
+                return @{ error = Get-ErrorDetails -Exception $_.Exception }
             }
 
             return $response

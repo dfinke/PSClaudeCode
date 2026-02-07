@@ -201,6 +201,10 @@ Describe 'Invoke-PSClaudeCode' {
             $script:FunctionContent | Should -Match 'function\\s*=\\s*@\\{'
         }
 
+        It 'Should extract API error details from response stream' {
+            $script:FunctionContent | Should -Match 'GetResponseStream'
+        }
+
         It 'Should handle text content in responses' {
             $script:FunctionContent | Should -Match 'type.*-eq.*"text"'
         }
