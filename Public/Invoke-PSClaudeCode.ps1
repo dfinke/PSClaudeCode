@@ -117,12 +117,9 @@ function Invoke-PSClaudeCode {
 
                 if ($role -eq "tool") {
                     $inputMessage = @{
-                        role    = $role
-                        content = @(@{
-                            type         = "tool_result"
-                            tool_call_id = $message.tool_call_id
-                            output       = "$contentValue"
-                        })
+                        type         = "tool_result"
+                        tool_call_id = $message.tool_call_id
+                        output       = "$contentValue"
                     }
                 }
                 elseif ($role -eq "assistant") {

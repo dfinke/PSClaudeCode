@@ -184,6 +184,10 @@ Describe 'Invoke-PSClaudeCode' {
             $script:FunctionContent | Should -Match 'output_text'
         }
 
+        It 'Should format OpenAI tool results as tool_result items' {
+            $script:FunctionContent | Should -Match 'tool_result'
+        }
+
         It 'Should process tool uses from API response' {
             $script:FunctionContent | Should -Match 'tool_use'
         }
