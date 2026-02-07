@@ -125,6 +125,15 @@ function Invoke-PSClaudeCode {
                         })
                     }
                 }
+                elseif ($role -eq "assistant") {
+                    $inputMessage = @{
+                        role    = $role
+                        content = @(@{
+                            type = "output_text"
+                            text = "$contentValue"
+                        })
+                    }
+                }
                 else {
                     $inputMessage = @{
                         role    = $role

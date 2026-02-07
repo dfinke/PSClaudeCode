@@ -180,6 +180,10 @@ Describe 'Invoke-PSClaudeCode' {
             $script:FunctionContent | Should -Match 'input_text'
         }
 
+        It 'Should format OpenAI assistant input as output_text items' {
+            $script:FunctionContent | Should -Match 'output_text'
+        }
+
         It 'Should process tool uses from API response' {
             $script:FunctionContent | Should -Match 'tool_use'
         }
