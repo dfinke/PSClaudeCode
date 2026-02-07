@@ -152,7 +152,7 @@ Describe 'Invoke-PSClaudeCode' {
 
         It 'Should call supported API endpoints in sub-agent' {
             $script:FunctionContent | Should -Match 'api\.anthropic\.com/v1/messages'
-            $script:FunctionContent | Should -Match 'api\.openai\.com/v1/chat/completions'
+            $script:FunctionContent | Should -Match 'api\.openai\.com/v1/responses'
         }
     }
 
@@ -163,7 +163,7 @@ Describe 'Invoke-PSClaudeCode' {
 
         It 'Should call supported API endpoints' {
             $script:FunctionContent | Should -Match 'https://api\.anthropic\.com/v1/messages'
-            $script:FunctionContent | Should -Match 'https://api\.openai\.com/v1/chat/completions'
+            $script:FunctionContent | Should -Match 'https://api\.openai\.com/v1/responses'
         }
 
         It 'Should set correct API headers' {
@@ -172,8 +172,8 @@ Describe 'Invoke-PSClaudeCode' {
             $script:FunctionContent | Should -Match 'Authorization'
         }
 
-        It 'Should use max_completion_tokens for OpenAI requests' {
-            $script:FunctionContent | Should -Match 'max_completion_tokens'
+        It 'Should use max_output_tokens for OpenAI requests' {
+            $script:FunctionContent | Should -Match 'max_output_tokens'
         }
 
         It 'Should process tool uses from API response' {

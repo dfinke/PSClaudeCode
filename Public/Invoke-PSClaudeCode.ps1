@@ -91,11 +91,9 @@ function Invoke-PSClaudeCode {
                 return $ToolDefinitions | ForEach-Object {
                     @{
                         type     = "function"
-                        function = @{
-                            name        = $_.name
-                            description = $_.description
-                            parameters  = $_.input_schema
-                        }
+                        name     = $_.name
+                        description = $_.description
+                        parameters  = $_.input_schema
                     }
                 }
             }
@@ -103,40 +101,98 @@ function Invoke-PSClaudeCode {
             return $ToolDefinitions
         }
 
+        function Convert-OpenAIInput {
+            param($MessageHistory)
+
+            $inputs = @()
+            foreach ($message in $MessageHistory) {
+                $role = $message.role
+                $contentValue = $message.content
+
+                if ($contentValue -is [System.Array]) {
+                    $contentValue = ($contentValue | Where-Object { $_.type -eq "text" } | ForEach-Object { $_.text }) -join ""
+                }
+
+                $inputMessage = @{
+                    role    = $role
+                    content = @(@{
+                        type = "text"
+                        text = "$contentValue"
+                    })
+                }
+
+                if ($message.tool_call_id) {
+                    $inputMessage.tool_call_id = $message.tool_call_id
+                }
+
+                if ($message.tool_calls) {
+                    $inputMessage.tool_calls = $message.tool_calls
+                }
+
+                $inputs += $inputMessage
+            }
+
+            return $inputs
+        }
+
         function Normalize-Response {
             param([string]$SelectedProvider, $Response)
 
             if ($SelectedProvider -eq "OpenAI") {
-                if (-not $Response.choices) {
+                if (-not $Response.output) {
                     return @{ content = @(); rawMessage = $null }
                 }
 
-                $message = $Response.choices[0].message
                 $contentItems = @()
+                $toolCalls = @()
 
-                if ($message.tool_calls) {
-                    foreach ($toolCall in $message.tool_calls) {
-                        $arguments = $toolCall.function.arguments
-                        $inputObject = if ([string]::IsNullOrWhiteSpace($arguments)) { @{} } else { $arguments | ConvertFrom-Json }
-                        $contentItems += @{
-                            type  = "tool_use"
-                            id    = $toolCall.id
-                            name  = $toolCall.function.name
-                            input = $inputObject
+                $outputMessages = $Response.output | Where-Object { $_.type -eq "message" }
+                $outputTextItems = $Response.output | Where-Object { $_.type -eq "output_text" }
+                $toolCallItems = $Response.output | Where-Object { $_.type -eq "tool_call" }
+
+                foreach ($outputMessage in $outputMessages) {
+                    foreach ($content in $outputMessage.content) {
+                        if ($content.type -eq "output_text") {
+                            $contentItems += @{
+                                type = "text"
+                                text = $content.text
+                            }
                         }
                     }
                 }
 
-                if ($message.content) {
+                foreach ($outputTextItem in $outputTextItems) {
                     $contentItems += @{
                         type = "text"
-                        text = $message.content
+                        text = $outputTextItem.text
+                    }
+                }
+
+                foreach ($toolCall in $toolCallItems) {
+                    $arguments = $toolCall.arguments
+                    $inputObject = if ([string]::IsNullOrWhiteSpace($arguments)) { @{} } else { $arguments | ConvertFrom-Json }
+                    $contentItems += @{
+                        type  = "tool_use"
+                        id    = $toolCall.call_id
+                        name  = $toolCall.name
+                        input = $inputObject
+                    }
+                    $toolCalls += @{
+                        id       = $toolCall.call_id
+                        type     = "function"
+                        function = @{
+                            name      = $toolCall.name
+                            arguments = $arguments
+                        }
                     }
                 }
 
                 return @{
                     content    = $contentItems
-                    rawMessage = $message
+                    rawMessage = @{
+                        content    = ($contentItems | Where-Object { $_.type -eq "text" } | ForEach-Object { $_.text }) -join ""
+                        tool_calls = $toolCalls
+                    }
                 }
             }
 
@@ -153,22 +209,16 @@ function Invoke-PSClaudeCode {
             )
 
             if ($SelectedProvider -eq "OpenAI") {
-                if ($SelectedModel -match "codex") {
-                    return @{
-                        error = "OpenAI model '$SelectedModel' does not support the chat completions endpoint. Use a chat-capable model (for example, gpt-4.1 or gpt-5.2-chat-latest)."
-                    }
-                }
-
                 $body = @{
                     model      = $SelectedModel
-                    messages   = $MessageHistory
-                    max_completion_tokens = 4096
+                    input      = Convert-OpenAIInput -MessageHistory $MessageHistory
+                    max_output_tokens = 4096
                     tools      = $ToolDefinitions
                     tool_choice = "auto"
                 } | ConvertTo-Json -Depth 10
 
                 try {
-                    $response = Invoke-RestMethod -Uri "https://api.openai.com/v1/chat/completions" -Method Post -Headers @{
+                    $response = Invoke-RestMethod -Uri "https://api.openai.com/v1/responses" -Method Post -Headers @{
                         "Authorization" = "Bearer $Key"
                         "Content-Type"  = "application/json"
                     } -Body $body -ErrorAction Stop

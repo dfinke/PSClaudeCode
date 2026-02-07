@@ -185,8 +185,8 @@ Get-ChildItem "*.json" | Get-Content | Invoke-PSClaudeCode -Task "Compare these 
 # Use Claude 3.5 Sonnet
 Invoke-PSClaudeCode -Task "Analyze the PowerShell scripts in this directory" -Model "claude-3-5-sonnet-20241022" -Provider Anthropic
 
-# Use OpenAI
-Invoke-PSClaudeCode -Task "Summarize the README" -Model "gpt-4o-mini" -Provider OpenAI
+# Use OpenAI (Responses API)
+Invoke-PSClaudeCode -Task "Summarize the README" -Model "gpt-4.1" -Provider OpenAI
 
 # Use the latest Claude Sonnet (default)
 Invoke-PSClaudeCode -Task "Create a summary of all .md files in the repository"
