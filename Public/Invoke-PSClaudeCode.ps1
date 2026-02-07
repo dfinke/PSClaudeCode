@@ -153,18 +153,29 @@ function Invoke-PSClaudeCode {
             )
 
             if ($SelectedProvider -eq "OpenAI") {
+                if ($SelectedModel -match "codex") {
+                    return @{
+                        error = "OpenAI model '$SelectedModel' does not support the chat completions endpoint. Use a chat-capable model (for example, gpt-4.1 or gpt-5.2-chat-latest)."
+                    }
+                }
+
                 $body = @{
                     model      = $SelectedModel
                     messages   = $MessageHistory
-                    max_tokens = 4096
+                    max_completion_tokens = 4096
                     tools      = $ToolDefinitions
                     tool_choice = "auto"
                 } | ConvertTo-Json -Depth 10
 
-                $response = Invoke-RestMethod -Uri "https://api.openai.com/v1/chat/completions" -Method Post -Headers @{
-                    "Authorization" = "Bearer $Key"
-                    "Content-Type"  = "application/json"
-                } -Body $body
+                try {
+                    $response = Invoke-RestMethod -Uri "https://api.openai.com/v1/chat/completions" -Method Post -Headers @{
+                        "Authorization" = "Bearer $Key"
+                        "Content-Type"  = "application/json"
+                    } -Body $body -ErrorAction Stop
+                }
+                catch {
+                    return @{ error = $_.Exception.Message }
+                }
 
                 return Normalize-Response -SelectedProvider $SelectedProvider -Response $response
             }
@@ -176,11 +187,16 @@ function Invoke-PSClaudeCode {
                 tools      = $ToolDefinitions
             } | ConvertTo-Json -Depth 10
 
-            $response = Invoke-RestMethod -Uri "https://api.anthropic.com/v1/messages" -Method Post -Headers @{
-                "x-api-key"         = $Key
-                "anthropic-version" = "2023-06-01"
-                "Content-Type"      = "application/json"
-            } -Body $body
+            try {
+                $response = Invoke-RestMethod -Uri "https://api.anthropic.com/v1/messages" -Method Post -Headers @{
+                    "x-api-key"         = $Key
+                    "anthropic-version" = "2023-06-01"
+                    "Content-Type"      = "application/json"
+                } -Body $body -ErrorAction Stop
+            }
+            catch {
+                return @{ error = $_.Exception.Message }
+            }
 
             return $response
         }
@@ -317,6 +333,11 @@ function Invoke-PSClaudeCode {
                 Write-Host "[$((Get-Date).ToString('HH:mm:ss'))]   🤖 Consulting model..."
                 $response = Invoke-ModelRequest -SelectedProvider $Provider -SelectedModel $Model -MessageHistory $subMessages -ToolDefinitions $providerTools -Key $apiKey
                 
+                if ($response.error) {
+                    Write-Host "[$((Get-Date).ToString('HH:mm:ss'))]   🚫 $($response.error)"
+                    return "Sub-agent failed: $($response.error)"
+                }
+
                 Write-Host "[$((Get-Date).ToString('HH:mm:ss'))]   🤖 Response received, analyzing..."
             
                 if ($Provider -eq "OpenAI") {
@@ -401,6 +422,11 @@ function Invoke-PSClaudeCode {
             Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] 🤖 Consulting model..."
             $response = Invoke-ModelRequest -SelectedProvider $Provider -SelectedModel $Model -MessageHistory $messages -ToolDefinitions $providerTools -Key $apiKey
             
+            if ($response.error) {
+                Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] 🚫 $($response.error)"
+                break
+            }
+
             Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] 🤖 Response received, analyzing..."
 
             if ($Provider -eq "OpenAI") {

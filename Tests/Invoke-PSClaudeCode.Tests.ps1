@@ -172,6 +172,10 @@ Describe 'Invoke-PSClaudeCode' {
             $script:FunctionContent | Should -Match 'Authorization'
         }
 
+        It 'Should use max_completion_tokens for OpenAI requests' {
+            $script:FunctionContent | Should -Match 'max_completion_tokens'
+        }
+
         It 'Should process tool uses from API response' {
             $script:FunctionContent | Should -Match 'tool_use'
         }
