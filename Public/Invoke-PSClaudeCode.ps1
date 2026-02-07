@@ -144,7 +144,7 @@ function Invoke-PSClaudeCode {
                 $inputs += $inputMessage
             }
 
-            return ,$inputs
+            return $inputs
         }
 
         function Normalize-Response {
@@ -248,7 +248,7 @@ function Invoke-PSClaudeCode {
             }
 
             if ($SelectedProvider -eq "OpenAI") {
-                $openAiInput = @(Convert-OpenAIInput -MessageHistory $MessageHistory)
+                $openAiInput = Convert-OpenAIInput -MessageHistory $MessageHistory
                 $body = @{
                     model      = $SelectedModel
                     input      = $openAiInput
