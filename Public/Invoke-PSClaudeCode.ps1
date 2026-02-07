@@ -3,9 +3,9 @@
     Invokes Claude Code, an AI-powered PowerShell agent that can perform tasks using structured tools.
 
 .DESCRIPTION
-    Invoke-PSClaudeCode uses Anthropic's Claude AI model to execute tasks by leveraging various tools including
-    file reading/writing, command execution, and sub-agent delegation. The function supports pipeline input
-    and provides safety checks for potentially dangerous operations.
+    Invoke-PSClaudeCode uses configurable LLM providers (Anthropic or OpenAI) to execute tasks by leveraging
+    various tools including file reading/writing, command execution, and sub-agent delegation. The function
+    supports pipeline input and provides safety checks for potentially dangerous operations.
 
 .PARAMETER Task
     The task description for the AI agent to perform. If not provided and pipeline input exists, the piped content becomes the task.
@@ -14,7 +14,10 @@
     Accepts pipeline input that can be used as part of the task description.
 
 .PARAMETER Model
-    The Claude model to use. Defaults to "claude-sonnet-4-5-20250929".
+    The model to use. Defaults to "claude-sonnet-4-5-20250929" for Anthropic.
+
+.PARAMETER Provider
+    The LLM provider to use. Defaults to "Anthropic". Use "OpenAI" for OpenAI-compatible models.
 
 .PARAMETER dangerouslySkipPermissions
     Switch to skip permission prompts for potentially dangerous operations. Use with caution.
@@ -35,7 +38,7 @@
     This example runs a command without permission prompts.
 
 .NOTES
-    Requires ANTHROPIC_API_KEY environment variable to be set.
+    Requires ANTHROPIC_API_KEY or OPENAI_API_KEY environment variable to be set, depending on Provider.
     The function includes safety checks for file operations and command execution.
 #>
 function Invoke-PSClaudeCode {
@@ -46,6 +49,8 @@ function Invoke-PSClaudeCode {
         [Parameter(ValueFromPipeline = $true)]
         [object]$InputObject,
         [string]$Model = "claude-sonnet-4-5-20250929",
+        [ValidateSet("Anthropic", "OpenAI")]
+        [string]$Provider = "Anthropic",
         [switch]$dangerouslySkipPermissions
     )
 
@@ -69,10 +74,139 @@ function Invoke-PSClaudeCode {
 
         # proceed with the rest of the function using the possibly-updated $Task
 
-        $apiKey = $env:ANTHROPIC_API_KEY
-        if (-not $apiKey) { Write-Host "Set ANTHROPIC_API_KEY"; exit }
+        function Get-ApiKey {
+            param([string]$SelectedProvider)
 
-        Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] 🤖 Processing request..."
+            switch ($SelectedProvider) {
+                "Anthropic" { return $env:ANTHROPIC_API_KEY }
+                "OpenAI" { return $env:OPENAI_API_KEY }
+                default { return $null }
+            }
+        }
+
+        function Convert-ToolsForProvider {
+            param([string]$SelectedProvider, $ToolDefinitions)
+
+            if ($SelectedProvider -eq "OpenAI") {
+                return $ToolDefinitions | ForEach-Object {
+                    @{
+                        type     = "function"
+                        function = @{
+                            name        = $_.name
+                            description = $_.description
+                            parameters  = $_.input_schema
+                        }
+                    }
+                }
+            }
+
+            return $ToolDefinitions
+        }
+
+        function Normalize-Response {
+            param([string]$SelectedProvider, $Response)
+
+            if ($SelectedProvider -eq "OpenAI") {
+                $message = $Response.choices[0].message
+                $contentItems = @()
+
+                if ($message.tool_calls) {
+                    foreach ($toolCall in $message.tool_calls) {
+                        $arguments = $toolCall.function.arguments
+                        $inputObject = if ([string]::IsNullOrWhiteSpace($arguments)) { @{} } else { $arguments | ConvertFrom-Json }
+                        $contentItems += @{
+                            type  = "tool_use"
+                            id    = $toolCall.id
+                            name  = $toolCall.function.name
+                            input = $inputObject
+                        }
+                    }
+                }
+
+                if ($message.content) {
+                    $contentItems += @{
+                        type = "text"
+                        text = $message.content
+                    }
+                }
+
+                return @{ content = $contentItems }
+            }
+
+            return $Response
+        }
+
+        function Invoke-ModelRequest {
+            param(
+                [string]$SelectedProvider,
+                [string]$SelectedModel,
+                $MessageHistory,
+                $ToolDefinitions,
+                [string]$Key
+            )
+
+            if ($SelectedProvider -eq "OpenAI") {
+                $body = @{
+                    model      = $SelectedModel
+                    messages   = $MessageHistory
+                    max_tokens = 4096
+                    tools      = $ToolDefinitions
+                    tool_choice = "auto"
+                } | ConvertTo-Json -Depth 10
+
+                $response = Invoke-RestMethod -Uri "https://api.openai.com/v1/chat/completions" -Method Post -Headers @{
+                    "Authorization" = "Bearer $Key"
+                    "Content-Type"  = "application/json"
+                } -Body $body
+
+                return Normalize-Response -SelectedProvider $SelectedProvider -Response $response
+            }
+
+            $body = @{
+                model      = $SelectedModel
+                messages   = $MessageHistory
+                max_tokens = 4096
+                tools      = $ToolDefinitions
+            } | ConvertTo-Json -Depth 10
+
+            $response = Invoke-RestMethod -Uri "https://api.anthropic.com/v1/messages" -Method Post -Headers @{
+                "x-api-key"         = $Key
+                "anthropic-version" = "2023-06-01"
+                "Content-Type"      = "application/json"
+            } -Body $body
+
+            return $response
+        }
+
+        function Append-ToolResults {
+            param(
+                [string]$SelectedProvider,
+                $MessageHistory,
+                $ToolResults
+            )
+
+            if ($SelectedProvider -eq "OpenAI") {
+                foreach ($toolResult in $ToolResults) {
+                    $MessageHistory += @{
+                        role         = "tool"
+                        tool_call_id = $toolResult.id
+                        content      = $toolResult.content
+                    }
+                }
+                return $MessageHistory
+            }
+
+            $MessageHistory += @{ role = "user"; content = $ToolResults }
+            return $MessageHistory
+        }
+
+        $apiKey = Get-ApiKey -SelectedProvider $Provider
+        if (-not $apiKey) {
+            Write-Host "Set ANTHROPIC_API_KEY or OPENAI_API_KEY for provider $Provider"
+            exit
+        }
+
+        Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] 🤖 Processing request with $Provider..."
 
         $tools = @(
             @{
@@ -169,22 +303,12 @@ function Invoke-PSClaudeCode {
             Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] 🤖 Starting sub-agent for: $SubTask"
             $subMessages = @(@{ role = "user"; content = $SubTask })
             $turns = 0
+            $providerTools = Convert-ToolsForProvider -SelectedProvider $Provider -ToolDefinitions $tools
         
             while ($turns -lt $MaxTurns) {
                 $turns++
-                Write-Host "[$((Get-Date).ToString('HH:mm:ss'))]   🤖 Consulting Claude..."
-                $body = @{
-                    model      = $Model
-                    messages   = $subMessages
-                    max_tokens = 4096
-                    tools      = $tools
-                } | ConvertTo-Json -Depth 10
-            
-                $response = Invoke-RestMethod -Uri "https://api.anthropic.com/v1/messages" -Method Post -Headers @{
-                    "x-api-key"         = $apiKey
-                    "anthropic-version" = "2023-06-01"
-                    "Content-Type"      = "application/json"
-                } -Body $body
+                Write-Host "[$((Get-Date).ToString('HH:mm:ss'))]   🤖 Consulting model..."
+                $response = Invoke-ModelRequest -SelectedProvider $Provider -SelectedModel $Model -MessageHistory $subMessages -ToolDefinitions $providerTools -Key $apiKey
                 
                 Write-Host "[$((Get-Date).ToString('HH:mm:ss'))]   🤖 Response received, analyzing..."
             
@@ -211,13 +335,13 @@ function Invoke-PSClaudeCode {
                         }
                     
                         $toolResults += @{
+                            id          = $toolUse.id
+                            content     = $result
                             type        = "tool_result"
                             tool_use_id = $toolUse.id
-                            content     = $result
                         }
                     }
-                    $userMessage = @{ role = "user"; content = $toolResults }
-                    $subMessages += $userMessage
+                    $subMessages = Append-ToolResults -SelectedProvider $Provider -MessageHistory $subMessages -ToolResults $toolResults
                 }
                 else {
                     $textContent = ($response.content | Where-Object { $_.type -eq "text" } | ForEach-Object { $_.text }) -join ""
@@ -251,24 +375,15 @@ function Invoke-PSClaudeCode {
 
         $messages = @(@{ role = "user"; content = $Task })
 
+        $providerTools = Convert-ToolsForProvider -SelectedProvider $Provider -ToolDefinitions $tools
+
         while ($true) {
             if ($messages.Count -gt 1) {
                 Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] 🤖 Continuing analysis..."
             }
             
-            Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] 🤖 Consulting Claude..."
-            $body = @{
-                model      = $Model
-                messages   = $messages
-                max_tokens = 4096
-                tools      = $tools
-            } | ConvertTo-Json -Depth 10
-
-            $response = Invoke-RestMethod -Uri "https://api.anthropic.com/v1/messages" -Method Post -Headers @{
-                "x-api-key"         = $apiKey
-                "anthropic-version" = "2023-06-01"
-                "Content-Type"      = "application/json"
-            } -Body $body
+            Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] 🤖 Consulting model..."
+            $response = Invoke-ModelRequest -SelectedProvider $Provider -SelectedModel $Model -MessageHistory $messages -ToolDefinitions $providerTools -Key $apiKey
             
             Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] 🤖 Response received, analyzing..."
 
@@ -295,13 +410,13 @@ function Invoke-PSClaudeCode {
                     }
                 
                     $toolResults += @{
+                        id          = $toolUse.id
+                        content     = $result
                         type        = "tool_result"
                         tool_use_id = $toolUse.id
-                        content     = $result
                     }
                 }
-                $userMessage = @{ role = "user"; content = $toolResults }
-                $messages += $userMessage
+                $messages = Append-ToolResults -SelectedProvider $Provider -MessageHistory $messages -ToolResults $toolResults
             }
             else {
                 $textContent = ($response.content | Where-Object { $_.type -eq "text" } | ForEach-Object { $_.text }) -join ""
