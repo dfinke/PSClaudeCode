@@ -176,6 +176,10 @@ Describe 'Invoke-PSClaudeCode' {
             $script:FunctionContent | Should -Match 'tool_use'
         }
 
+        It 'Should handle OpenAI tool calls in responses' {
+            $script:FunctionContent | Should -Match 'tool_calls'
+        }
+
         It 'Should handle text content in responses' {
             $script:FunctionContent | Should -Match 'type.*-eq.*"text"'
         }

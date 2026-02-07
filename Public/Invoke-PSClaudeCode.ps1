@@ -107,6 +107,10 @@ function Invoke-PSClaudeCode {
             param([string]$SelectedProvider, $Response)
 
             if ($SelectedProvider -eq "OpenAI") {
+                if (-not $Response.choices) {
+                    return @{ content = @(); rawMessage = $null }
+                }
+
                 $message = $Response.choices[0].message
                 $contentItems = @()
 
@@ -130,7 +134,10 @@ function Invoke-PSClaudeCode {
                     }
                 }
 
-                return @{ content = $contentItems }
+                return @{
+                    content    = $contentItems
+                    rawMessage = $message
+                }
             }
 
             return $Response
@@ -312,7 +319,16 @@ function Invoke-PSClaudeCode {
                 
                 Write-Host "[$((Get-Date).ToString('HH:mm:ss'))]   🤖 Response received, analyzing..."
             
-                $assistantMessage = @{ role = "assistant"; content = $response.content }
+                if ($Provider -eq "OpenAI") {
+                    $assistantMessage = @{
+                        role       = "assistant"
+                        content    = $response.rawMessage.content
+                        tool_calls = $response.rawMessage.tool_calls
+                    }
+                }
+                else {
+                    $assistantMessage = @{ role = "assistant"; content = $response.content }
+                }
                 $subMessages += $assistantMessage
             
                 $toolUses = $response.content | Where-Object { $_.type -eq "tool_use" }
@@ -387,7 +403,16 @@ function Invoke-PSClaudeCode {
             
             Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] 🤖 Response received, analyzing..."
 
-            $assistantMessage = @{ role = "assistant"; content = $response.content }
+            if ($Provider -eq "OpenAI") {
+                $assistantMessage = @{
+                    role       = "assistant"
+                    content    = $response.rawMessage.content
+                    tool_calls = $response.rawMessage.tool_calls
+                }
+            }
+            else {
+                $assistantMessage = @{ role = "assistant"; content = $response.content }
+            }
             $messages += $assistantMessage
 
             $toolUses = $response.content | Where-Object { $_.type -eq "tool_use" }
