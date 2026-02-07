@@ -144,7 +144,7 @@ function Invoke-PSClaudeCode {
                 $inputs += $inputMessage
             }
 
-            return $inputs
+            return ,$inputs
         }
 
         function Normalize-Response {
@@ -248,9 +248,10 @@ function Invoke-PSClaudeCode {
             }
 
             if ($SelectedProvider -eq "OpenAI") {
+                $openAiInput = @(Convert-OpenAIInput -MessageHistory $MessageHistory)
                 $body = @{
                     model      = $SelectedModel
-                    input      = Convert-OpenAIInput -MessageHistory $MessageHistory
+                    input      = $openAiInput
                     max_output_tokens = 4096
                     tools      = $ToolDefinitions
                     tool_choice = "auto"
@@ -460,12 +461,15 @@ function Invoke-PSClaudeCode {
                             Write-Host "[$((Get-Date).ToString('HH:mm:ss'))]      🚫 $result"
                         }
                     
-                        $toolResults += @{
-                            id          = $toolUse.id
+                        $toolResult = @{
                             content     = $result
                             type        = "tool_result"
                             tool_use_id = $toolUse.id
                         }
+                        if ($Provider -eq "OpenAI") {
+                            $toolResult.id = $toolUse.id
+                        }
+                        $toolResults += $toolResult
                     }
                     $subMessages = Append-ToolResults -SelectedProvider $Provider -MessageHistory $subMessages -ToolResults $toolResults
                 }
@@ -549,12 +553,15 @@ function Invoke-PSClaudeCode {
                         Write-Host "[$((Get-Date).ToString('HH:mm:ss'))]    🚫 $result"
                     }
                 
-                    $toolResults += @{
-                        id          = $toolUse.id
+                    $toolResult = @{
                         content     = $result
                         type        = "tool_result"
                         tool_use_id = $toolUse.id
                     }
+                    if ($Provider -eq "OpenAI") {
+                        $toolResult.id = $toolUse.id
+                    }
+                    $toolResults += $toolResult
                 }
                 $messages = Append-ToolResults -SelectedProvider $Provider -MessageHistory $messages -ToolResults $toolResults
             }
