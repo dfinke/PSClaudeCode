@@ -199,6 +199,8 @@ Describe 'Invoke-PSClaudeCode' {
         It 'Should format OpenAI tools with function schema' {
             $script:FunctionContent | Should -Match 'type\\s*=\\s*"function"'
             $script:FunctionContent | Should -Match 'name\\s*=\\s*\\$_\\.name'
+            $script:FunctionContent | Should -Match 'description\\s*=\\s*\\$_\\.description'
+            $script:FunctionContent | Should -Match 'parameters\\s*=\\s*\\$_\\.input_schema'
         }
 
         It 'Should extract API error details from response stream' {
