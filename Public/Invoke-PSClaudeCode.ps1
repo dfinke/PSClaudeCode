@@ -90,7 +90,7 @@ function Invoke-PSClaudeCode {
             if ($SelectedProvider -eq "OpenAI") {
                 return $ToolDefinitions | ForEach-Object {
                     @{
-                        type     = "function"
+                        type        = "function"
                         name        = $_.name
                         description = $_.description
                         parameters  = $_.input_schema
@@ -101,105 +101,48 @@ function Invoke-PSClaudeCode {
             return $ToolDefinitions
         }
 
-        function Convert-OpenAIInput {
-            param($MessageHistory)
-
-            $inputs = @()
-            foreach ($message in $MessageHistory) {
-                $role = $message.role
-                $contentValue = $message.content
-
-                if ($contentValue -is [System.Array]) {
-                    $contentValue = ($contentValue | Where-Object { $_.type -eq "text" } | ForEach-Object { $_.text }) -join ""
-                }
-
-                if ($role -eq "tool") {
-                    $inputMessage = @{
-                        type         = "tool_result"
-                        tool_call_id = $message.tool_call_id
-                        output       = "$contentValue"
-                    }
-                }
-                elseif ($role -eq "assistant") {
-                    $inputMessage = @{
-                        role    = $role
-                        content = @(@{
-                            type = "output_text"
-                            text = "$contentValue"
-                        })
-                    }
-                }
-                else {
-                    $inputMessage = @{
-                        role    = $role
-                        content = @(@{
-                            type = "input_text"
-                            text = "$contentValue"
-                        })
-                    }
-                }
-
-                $inputs += $inputMessage
-            }
-
-            return $inputs
-        }
-
         function Normalize-Response {
             param([string]$SelectedProvider, $Response)
 
             if ($SelectedProvider -eq "OpenAI") {
-                if (-not $Response.output) {
-                    return @{ content = @(); rawMessage = $null }
-                }
-
                 $contentItems = @()
                 $toolCalls = @()
 
-                $outputMessages = $Response.output | Where-Object { $_.type -eq "message" }
-                $outputTextItems = $Response.output | Where-Object { $_.type -eq "output_text" }
-                $toolCallItems = $Response.output | Where-Object { $_.type -eq "tool_call" }
-
-                foreach ($outputMessage in $outputMessages) {
-                    foreach ($content in $outputMessage.content) {
-                        if ($content.type -eq "output_text") {
-                            $contentItems += @{
-                                type = "text"
-                                text = $content.text
+                foreach ($item in $Response.output) {
+                    if ($item.type -eq "message") {
+                        foreach ($content in $item.content) {
+                            if ($content.type -eq "output_text") {
+                                $contentItems += @{
+                                    type = "text"
+                                    text = $content.text
+                                }
+                            }
+                        }
+                    }
+                    if ($item.type -eq "function_call") {
+                        $arguments = $item.arguments
+                        $inputObject = $arguments | ConvertFrom-Json
+                        $contentItems += @{
+                            type  = "tool_use"
+                            id    = $item.call_id
+                            name  = $item.name
+                            input = $inputObject
+                        }
+                        $toolCalls += @{
+                            id       = $item.call_id
+                            type     = "function"
+                            function = @{
+                                name      = $item.name
+                                arguments = $arguments
                             }
                         }
                     }
                 }
 
-                foreach ($outputTextItem in $outputTextItems) {
-                    $contentItems += @{
-                        type = "text"
-                        text = $outputTextItem.text
-                    }
-                }
-
-                foreach ($toolCall in $toolCallItems) {
-                    $arguments = $toolCall.arguments
-                    $inputObject = if ([string]::IsNullOrWhiteSpace($arguments)) { @{} } else { $arguments | ConvertFrom-Json }
-                    $contentItems += @{
-                        type  = "tool_use"
-                        id    = $toolCall.call_id
-                        name  = $toolCall.name
-                        input = $inputObject
-                    }
-                    $toolCalls += @{
-                        id       = $toolCall.call_id
-                        type     = "function"
-                        function = @{
-                            name      = $toolCall.name
-                            arguments = $arguments
-                        }
-                    }
-                }
-
                 return @{
-                    content    = $contentItems
-                    rawMessage = @{
+                    content       = $contentItems
+                    openai_output = $Response.output
+                    rawMessage    = @{
                         content    = ($contentItems | Where-Object { $_.type -eq "text" } | ForEach-Object { $_.text }) -join ""
                         tool_calls = $toolCalls
                     }
@@ -246,13 +189,40 @@ function Invoke-PSClaudeCode {
             }
 
             if ($SelectedProvider -eq "OpenAI") {
-                $openAiInput = Convert-OpenAIInput -MessageHistory $MessageHistory
+                # Convert MessageHistory to Responses API input format
+                # Wrap in @() to ensure array even with a single message
+                [array]$inputItems = @($MessageHistory | ForEach-Object {
+                        $msg = $_
+                        if ($msg.role -eq "tool") {
+                            # Responses API: tool results are "function_call_output" items
+                            @{
+                                type    = "function_call_output"
+                                call_id = $msg.tool_call_id
+                                output  = $msg.tool_output
+                            }
+                        }
+                        elseif ($msg.role -eq "assistant") {
+                            # Re-emit the raw output items the model returned
+                            # so the Responses API sees its own native format
+                            foreach ($item in $msg.openai_output) {
+                                $item
+                            }
+                        }
+                        else {
+                            @{
+                                type    = "message"
+                                role    = $msg.role
+                                content = @($msg.content)
+                            }
+                        }
+                    })
+
                 $body = @{
-                    model      = $SelectedModel
-                    input      = $openAiInput
+                    model             = $SelectedModel
+                    input             = $inputItems
                     max_output_tokens = 4096
-                    tools      = $ToolDefinitions
-                    tool_choice = "auto"
+                    tools             = $ToolDefinitions
+                    tool_choice       = "auto"
                 } | ConvertTo-Json -Depth 10
 
                 try {
@@ -301,7 +271,7 @@ function Invoke-PSClaudeCode {
                     $MessageHistory += @{
                         role         = "tool"
                         tool_call_id = $toolResult.id
-                        content      = $toolResult.content
+                        tool_output  = $toolResult.content
                     }
                 }
                 return $MessageHistory
@@ -412,7 +382,7 @@ function Invoke-PSClaudeCode {
             param([string]$SubTask, [int]$MaxTurns = 10)
         
             Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] 🤖 Starting sub-agent for: $SubTask"
-            $subMessages = @(@{ role = "user"; content = $SubTask })
+            $subMessages = @(@{ role = "user"; content = @(@{ type = "text"; text = $SubTask }) })
             $turns = 0
             $providerTools = Convert-ToolsForProvider -SelectedProvider $Provider -ToolDefinitions $tools
         
@@ -430,9 +400,9 @@ function Invoke-PSClaudeCode {
             
                 if ($Provider -eq "OpenAI") {
                     $assistantMessage = @{
-                        role       = "assistant"
-                        content    = $response.rawMessage.content
-                        tool_calls = $response.rawMessage.tool_calls
+                        role          = "assistant"
+                        openai_output = $response.openai_output
+                        content       = $response.content
                     }
                 }
                 else {
@@ -501,7 +471,7 @@ function Invoke-PSClaudeCode {
             return $true
         }
 
-        $messages = @(@{ role = "user"; content = $Task })
+        $messages = @(@{ role = "user"; content = @(@{ type = "input_text"; text = $Task }) })
 
         $providerTools = Convert-ToolsForProvider -SelectedProvider $Provider -ToolDefinitions $tools
 
@@ -522,9 +492,9 @@ function Invoke-PSClaudeCode {
 
             if ($Provider -eq "OpenAI") {
                 $assistantMessage = @{
-                    role       = "assistant"
-                    content    = $response.rawMessage.content
-                    tool_calls = $response.rawMessage.tool_calls
+                    role          = "assistant"
+                    openai_output = $response.openai_output
+                    content       = $response.content
                 }
             }
             else {
