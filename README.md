@@ -15,7 +15,7 @@
 
 Ever wondered how AI agents like Claude Code work their magic? Dive into this PowerShell implementation and build your own intelligent assistant from scratch!
 
-Inspired by the original [Claude Code article](https://x.com/dabit3/status/2009668398691582315?s=20), this project demonstrates how to create a PowerShell AI agent using Anthropic's Claude API. Start with a simple command runner and evolve it into a sophisticated agent with function calling, file operations, and conversational capabilities.
+Inspired by the original [Claude Code article](https://x.com/dabit3/status/2009668398691582315?s=20), this project demonstrates how to create a PowerShell AI agent using Anthropic or OpenAI-compatible APIs. Start with a simple command runner and evolve it into a sophisticated agent with function calling, file operations, and conversational capabilities.
 
 # In Action
 
@@ -47,6 +47,17 @@ This image displays a sample section of the log file being analyzed, showing the
 
 ![Sample section of log file being analyzed](media/ipcc-log-sample-section.png)
 
+### OpenAI Provider Support
+PSClaudeCode now fully supports the OpenAI Responses API with complete tool calling capabilities. The agent can use OpenAI models like GPT-4.1 for autonomous task completion:
+
+```powershell
+# Use OpenAI with GPT-4.1 for file analysis
+Invoke-PSClaudeCode -Task "Read the PSClaudeCode.psd1 file and summarize its contents" -Model "gpt-4.1" -Provider OpenAI
+
+# OpenAI agent analyzing PowerShell module structure
+Invoke-PSClaudeCode -Task "Analyze all PowerShell files in this directory and create a dependency map" -Provider OpenAI
+```
+
 The examples above highlight how the agent can handle complex, multi-step tasks without predefined logic, adapting to the specific requirements of log analysis and reporting.
 
 ## Table of Contents
@@ -65,9 +76,9 @@ The examples above highlight how the agent can handle complex, multi-step tasks 
 - **Agent Loop**: Iterative task completion with AI-driven decision making
 - **Structured Tools**: Function calling for file operations (read/write) and command execution
 - **Permission Checks**: Safe operations with user confirmation for dangerous actions
-- **Model Selection**: Configurable Claude model selection via parameters
+- **Model Selection**: Configurable model selection via parameters
 - **Sub-agent Support**: Delegates complex tasks to specialized sub-agents
-- **PowerShell Native**: Built entirely in PowerShell, compatible with Anthropic Claude API
+- **PowerShell Native**: Built entirely in PowerShell, compatible with Anthropic and OpenAI APIs
 - **Progressive Complexity**: Three agent versions showing evolution from simple to advanced
 - **Comment-Based Help**: Full PowerShell help documentation with `Get-Help Invoke-PSClaudeCode`
 - **Pipeline Input Support**: Accept context via pipeline for enhanced task descriptions
@@ -75,7 +86,7 @@ The examples above highlight how the agent can handle complex, multi-step tasks 
 
 ## Prerequisites
 - PowerShell 5.1 or higher
-- Anthropic API key (set as environment variable `$env:ANTHROPIC_API_KEY`)
+- Anthropic API key (`$env:ANTHROPIC_API_KEY`) or OpenAI API key (`$env:OPENAI_API_KEY`)
 
 ## Installation
 1. Clone the repository:
@@ -84,9 +95,11 @@ The examples above highlight how the agent can handle complex, multi-step tasks 
    cd PSClaudeCode
    ```
 
-2. Set your Anthropic API key:
+2. Set your API key:
    ```powershell
    $env:ANTHROPIC_API_KEY = "your-api-key-here"
+   # or
+   $env:OPENAI_API_KEY = "your-api-key-here"
    ```
 
 3. Import the module:
@@ -125,7 +138,8 @@ Get-Help Invoke-PSClaudeCode -Parameter Task
 
 ### Parameters
 - **`-Task`**: The task description for the AI agent to complete (required)
-- **`-Model`**: The Claude model to use (optional, defaults to "claude-sonnet-4-5-20250929")
+- **`-Model`**: The model to use (optional, defaults to "claude-sonnet-4-5-20250929")
+- **`-Provider`**: The LLM provider to use (`Anthropic` or `OpenAI`, defaults to `Anthropic`)
 - **`-dangerouslySkipPermissions`**: Switch to bypass user confirmation prompts for dangerous operations (use with caution)
 - **Pipeline Input**: Accepts pipeline input as additional context for the task
 
@@ -135,7 +149,7 @@ Get-Help Invoke-PSClaudeCode -Parameter Task
 Invoke-PSClaudeCode -Task "Create a new file called 'test.txt' with 'Hello, World!'"
 
 # Specify a different model
-Invoke-PSClaudeCode -Task "List all files in the current directory" -Model "claude-3-5-sonnet-20241022"
+Invoke-PSClaudeCode -Task "List all files in the current directory" -Model "claude-3-5-sonnet-20241022" -Provider Anthropic
 
 # Bypass permission checks (use with caution)
 Invoke-PSClaudeCode -Task "Delete all .tmp files in the current directory" -dangerouslySkipPermissions
@@ -180,7 +194,10 @@ Get-ChildItem "*.json" | Get-Content | Invoke-PSClaudeCode -Task "Compare these 
 ### Using Different Models
 ```powershell
 # Use Claude 3.5 Sonnet
-Invoke-PSClaudeCode -Task "Analyze the PowerShell scripts in this directory" -Model "claude-3-5-sonnet-20241022"
+Invoke-PSClaudeCode -Task "Analyze the PowerShell scripts in this directory" -Model "claude-3-5-sonnet-20241022" -Provider Anthropic
+
+# Use OpenAI (Responses API)
+Invoke-PSClaudeCode -Task "Summarize the README" -Model "gpt-4.1" -Provider OpenAI
 
 # Use the latest Claude Sonnet (default)
 Invoke-PSClaudeCode -Task "Create a summary of all .md files in the repository"

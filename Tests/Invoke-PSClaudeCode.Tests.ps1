@@ -3,8 +3,9 @@ BeforeAll {
     $ModulePath = Join-Path (Split-Path $PSScriptRoot -Parent) 'PSClaudeCode.psd1'
     Import-Module $ModulePath -Force
 
-    # Store original API key
+    # Store original API keys
     $script:OriginalApiKey = $env:ANTHROPIC_API_KEY
+    $script:OriginalOpenAiKey = $env:OPENAI_API_KEY
 
     # Load function content once for all tests
     $script:FunctionPath = Join-Path (Join-Path (Split-Path $PSScriptRoot -Parent) 'Public') 'Invoke-PSClaudeCode.ps1'
@@ -12,8 +13,9 @@ BeforeAll {
 }
 
 AfterAll {
-    # Restore original API key
+    # Restore original API keys
     $env:ANTHROPIC_API_KEY = $script:OriginalApiKey
+    $env:OPENAI_API_KEY = $script:OriginalOpenAiKey
 }
 
 Describe 'Invoke-PSClaudeCode' {
@@ -35,6 +37,14 @@ Describe 'Invoke-PSClaudeCode' {
             $command.Parameters['dangerouslySkipPermissions'].SwitchParameter | Should -Be $true
         }
 
+        It 'Should have a Provider parameter with ValidateSet values' {
+            $command = Get-Command Invoke-PSClaudeCode
+            $command.Parameters.Keys | Should -Contain 'Provider'
+            $validateSet = $command.Parameters['Provider'].Attributes | Where-Object { $_.TypeId.Name -eq 'ValidateSetAttribute' }
+            $validateSet.ValidValues | Should -Contain 'Anthropic'
+            $validateSet.ValidValues | Should -Contain 'OpenAI'
+        }
+
         It 'Should have an InputObject parameter that accepts pipeline input' {
             $command = Get-Command Invoke-PSClaudeCode
             $command.Parameters.Keys | Should -Contain 'InputObject'
@@ -46,19 +56,22 @@ Describe 'Invoke-PSClaudeCode' {
 
     Context 'API Key Validation' {
         BeforeEach {
-            # Clear API key for these tests
+            # Clear API keys for these tests
             $env:ANTHROPIC_API_KEY = $null
+            $env:OPENAI_API_KEY = $null
         }
 
         AfterEach {
-            # Restore API key
+            # Restore API keys
             $env:ANTHROPIC_API_KEY = $script:OriginalApiKey
+            $env:OPENAI_API_KEY = $script:OriginalOpenAiKey
         }
 
-        It 'Should validate API key is set' {
+        It 'Should validate API keys are set' {
             # We can't directly test the exit behavior in Pester easily,
             # but we can verify the function requires the environment variable
             $env:ANTHROPIC_API_KEY | Should -BeNullOrEmpty
+            $env:OPENAI_API_KEY | Should -BeNullOrEmpty
         }
     }
 
@@ -137,8 +150,9 @@ Describe 'Invoke-PSClaudeCode' {
             $script:FunctionContent | Should -Match 'MaxTurns.*=.*10'
         }
 
-        It 'Should call Anthropic API in sub-agent' {
+        It 'Should call supported API endpoints in sub-agent' {
             $script:FunctionContent | Should -Match 'api\.anthropic\.com/v1/messages'
+            $script:FunctionContent | Should -Match 'api\.openai\.com/v1/responses'
         }
     }
 
@@ -147,17 +161,54 @@ Describe 'Invoke-PSClaudeCode' {
             $script:FunctionContent | Should -Match 'Model\s*=\s*"claude-sonnet-4-5-20250929"'
         }
 
-        It 'Should call Anthropic API endpoint' {
+        It 'Should call supported API endpoints' {
             $script:FunctionContent | Should -Match 'https://api\.anthropic\.com/v1/messages'
+            $script:FunctionContent | Should -Match 'https://api\.openai\.com/v1/responses'
         }
 
         It 'Should set correct API headers' {
             $script:FunctionContent | Should -Match 'x-api-key'
             $script:FunctionContent | Should -Match 'anthropic-version'
+            $script:FunctionContent | Should -Match 'Authorization'
+        }
+
+        It 'Should use max_output_tokens for OpenAI requests' {
+            $script:FunctionContent | Should -Match 'max_output_tokens'
+        }
+
+        It 'Should format OpenAI input as input_text items' {
+            $script:FunctionContent | Should -Match 'input_text'
+        }
+
+        It 'Should format OpenAI assistant input as output_text items' {
+            $script:FunctionContent | Should -Match 'output_text'
+        }
+
+        It 'Should format OpenAI tool results as tool_result items' {
+            $script:FunctionContent | Should -Match 'tool_result'
         }
 
         It 'Should process tool uses from API response' {
             $script:FunctionContent | Should -Match 'tool_use'
+        }
+
+        It 'Should handle OpenAI tool calls in responses' {
+            $script:FunctionContent | Should -Match 'tool_calls'
+        }
+
+        It 'Should format OpenAI tools with function schema' {
+            $script:FunctionContent | Should -Match 'type\\s*=\\s*"function"'
+            $script:FunctionContent | Should -Match 'name\\s*=\\s*\\$_\\.name'
+            $script:FunctionContent | Should -Match 'description\\s*=\\s*\\$_\\.description'
+            $script:FunctionContent | Should -Match 'parameters\\s*=\\s*\\$_\\.input_schema'
+        }
+
+        It 'Should extract API error details from response stream' {
+            $script:FunctionContent | Should -Match 'GetResponseStream'
+        }
+
+        It 'Should use ErrorDetails when present for API errors' {
+            $script:FunctionContent | Should -Match 'ErrorDetails'
         }
 
         It 'Should handle text content in responses' {
@@ -218,13 +269,13 @@ Describe 'Invoke-PSClaudeCode' {
         It 'Should have DESCRIPTION section' {
             $help = Get-Help Invoke-PSClaudeCode
             $help.Description | Should -Not -BeNullOrEmpty
-            $help.Description.Text | Should -Match 'Anthropic.*Claude'
+            $help.Description.Text | Should -Match 'Anthropic|OpenAI'
         }
 
         It 'Should have PARAMETERS section' {
             $help = Get-Help Invoke-PSClaudeCode
             $help.Parameters | Should -Not -BeNullOrEmpty
-            $help.Parameters.Parameter | Should -HaveCount 4  # Task, InputObject, Model, dangerouslySkipPermissions
+            $help.Parameters.Parameter | Should -HaveCount 5  # Task, InputObject, Model, Provider, dangerouslySkipPermissions
         }
 
         It 'Should have parameter help for Task' {
@@ -238,7 +289,14 @@ Describe 'Invoke-PSClaudeCode' {
             $help = Get-Help Invoke-PSClaudeCode
             $modelParam = $help.Parameters.Parameter | Where-Object { $_.Name -eq 'Model' }
             $modelParam | Should -Not -BeNullOrEmpty
-            $modelParam.Description.Text | Should -Match 'Claude model'
+            $modelParam.Description.Text | Should -Match 'model'
+        }
+
+        It 'Should have parameter help for Provider' {
+            $help = Get-Help Invoke-PSClaudeCode
+            $providerParam = $help.Parameters.Parameter | Where-Object { $_.Name -eq 'Provider' }
+            $providerParam | Should -Not -BeNullOrEmpty
+            $providerParam.Description.Text | Should -Match 'provider'
         }
 
         It 'Should have parameter help for dangerouslySkipPermissions' {
@@ -257,7 +315,7 @@ Describe 'Invoke-PSClaudeCode' {
         It 'Should have NOTES section' {
             $help = Get-Help Invoke-PSClaudeCode
             $help.AlertSet | Should -Not -BeNullOrEmpty
-            $help.AlertSet.Alert.Text | Should -Match 'ANTHROPIC_API_KEY'
+            $help.AlertSet.Alert.Text | Should -Match 'ANTHROPIC_API_KEY|OPENAI_API_KEY'
         }
     }
 }
